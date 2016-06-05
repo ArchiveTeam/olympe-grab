@@ -76,7 +76,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     end
   end
   
-  if seedurls[string.match(url, "^https?://([^/]+)")] == true and not (string.match(url, "%.[mM][pP]4$") or string.match(url, "%.[mM][pP]3$") or string.match(url, "%.[jJ][pP][gG]$") or string.match(url, "%.[gG][iI][fF]$") or string.match(url, "%.[aA][vV][iI]$") or string.match(url, "%.[fF][lL][vV]$") or string.match(url, "%.[pP][dD][fF]$") or string.match(url, "%.[rR][mM]$") or string.match(url, "%.[rR][aA]$") or string.match(url, "%.[wW][mM][vV]$") or string.match(url, "%.[jJ][pP][eE][gG]$") or string.match(url, "%.[sS][wW][fF]$")) then
+  if seedurls[string.match(url, "^https?://([^/]+)")] == true and not (string.match(url, "%.[mM][pP]4$") or string.match(url, "%.[mM][pP]3$") or string.match(url, "%.[jJ][pP][gG]$") or string.match(url, "%.[gG][iI][fF]$") or string.match(url, "%.[pP][nN][gG]$") or string.match(url, "%.[sS][vV][gG]$") or string.match(url, "%.[iI][cC][oO]$") or string.match(url, "%.[aA][vV][iI]$") or string.match(url, "%.[fF][lL][vV]$") or string.match(url, "%.[pP][dD][fF]$") or string.match(url, "%.[rR][mM]$") or string.match(url, "%.[rR][aA]$") or string.match(url, "%.[wW][mM][vV]$") or string.match(url, "%.[jJ][pP][eE][gG]$") or string.match(url, "%.[sS][wW][fF]$")) then
     html = read_file(file)
     for newurl in string.gmatch(html, '([^"]+)') do
       checknewurl(newurl)
@@ -111,18 +111,29 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
   io.stdout:write(url_count .. "=" .. status_code .. " " .. url["url"] .. ".  \n")
   io.stdout:flush()
 
-  if downloaded[url["url"]] == true then
+  local function check_loop(part_)
+    for part in part_ do
+      part = string.gsub(part, '(['..("%^$().[]*+-?"):gsub("(.)", "%%%1")..'])', "%%%1")
+      if string.find(url["url"], "/"..part.."/"..part.."/"..part.."/") or string.find(url["url"], "&"..part.."&"..part.."&"..part.."&") or string.find(url["url"], "%%"..part.."%%"..part.."%%"..part.."%%") then
+        return wget.actions.EXIT
+      end
+    end
+  end
+
+  if downloaded[url["url"]] == true and status_code >= 200 and status_code < 400 then
     return wget.actions.EXIT
   end
 
-  if (status_code >= 200 and status_code <= 399) then
-    if string.match(url.url, "https://") then
-      local newurl = string.gsub(url.url, "https://", "http://")
-      downloaded[newurl] = true
-    else
-      downloaded[url.url] = true
-    end
+  if (status_code >= 200 and status_code < 400) then
+    downloaded[url["url"]] = true
   end
+
+  check_loop(string.gmatch(url["url"], "([^/]*)"))
+  check_loop(string.gmatch(url["url"], "([^/]+/[^/]*)"))
+  check_loop(string.gmatch(url["url"], "([^%%]*)"))
+  check_loop(string.gmatch(url["url"], "([^%%]+%%[^%%]*)"))
+  check_loop(string.gmatch(url["url"], "([^&]*)"))
+  check_loop(string.gmatch(url["url"], "([^&]+&[^&]*)"))
   
   if status_code >= 500 or
     (status_code >= 400 and status_code ~= 404) or
@@ -136,7 +147,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
       io.stdout:flush()
       tries = 0
       if seedurls[string.match(url["url"], "^https?://([^/]+)")] == true then
-        return wget.actions.ABORT
+        return wget.actions.EXIT
       else
         return wget.actions.EXIT
       end
