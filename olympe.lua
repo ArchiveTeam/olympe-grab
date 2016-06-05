@@ -147,7 +147,11 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
       io.stdout:flush()
       tries = 0
       if seedurls[string.match(url["url"], "^https?://([^/]+)")] == true then
-        return wget.actions.EXIT
+        if status_code == 0 then
+          return wget.actions.ABORT
+        else
+          return wget.actions.EXIT
+        end
       else
         return wget.actions.EXIT
       end
